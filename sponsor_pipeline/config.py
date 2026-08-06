@@ -48,7 +48,7 @@ class Settings:
     event_venue: str
 
     @classmethod
-    def from_env(cls, *, require_llm: bool = True) -> "Settings":
+    def from_env(cls, *, require_llm: bool = True) -> Settings:
         """
         Load settings from a .env file in the project root.
 

@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-
 from sponsor_pipeline.llm.client import LLMClient
 from sponsor_pipeline.logger import get_logger
-
 from sponsor_pipeline.models import (
     Company,
     CrawlResult,
@@ -11,11 +9,8 @@ from sponsor_pipeline.models import (
     SponsorScore,
     SponsorTier,
 )
-
 from sponsor_pipeline.prompts.templates import PromptTemplateRegistry
-
 from sponsor_pipeline.services.crawl_evidence import format_crawl_for_prompt
-
 from sponsor_pipeline.services.filter import LeadFilter
 
 logger = get_logger(__name__)

@@ -61,7 +61,6 @@ def _build_dimension_evaluator(settings: Settings) -> SponsorDimensionEvaluator:
 
     if provider == "anthropic":
         import anthropic
-
         return ClaudeSponsorDimensionEvaluator(
             anthropic.Anthropic(api_key=settings.anthropic_api_key),
             model,
@@ -69,7 +68,6 @@ def _build_dimension_evaluator(settings: Settings) -> SponsorDimensionEvaluator:
 
     if provider == "openai":
         from openai import OpenAI
-
         return OpenAISponsorDimensionEvaluator(
             OpenAI(api_key=settings.openai_api_key),
             model,
@@ -78,7 +76,6 @@ def _build_dimension_evaluator(settings: Settings) -> SponsorDimensionEvaluator:
     if provider == "google":
         # Uses the new google.genai SDK (google-genai package), not the deprecated google.generativeai
         from google import genai
-
         client = genai.Client(api_key=settings.google_api_key)
         return GoogleSponsorDimensionEvaluator(client, model)
 
@@ -87,7 +84,6 @@ def _build_dimension_evaluator(settings: Settings) -> SponsorDimensionEvaluator:
         f"Unsupported LLM provider for the evaluator: '{provider}'. "
         f"Choose one of: anthropic, openai, google"
     )
-
 
 logger = get_logger(__name__)
 

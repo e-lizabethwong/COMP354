@@ -70,19 +70,27 @@ class _OpenAIBackend(_LLMBackend):
 
 
 # For Google / Gemini backend --------------------------------
+# Uses the new google.genai SDK (google-genai package) — the same one
+# already used in services/sponsor_evaluator/llm/sponsor_dimension_evaluator.py.
+# The old google.generativeai package is deprecated and is not installed
+# (see requirements.txt), so importing it here used to raise ModuleNotFoundError
+# for every LLM_PROVIDER=google call that went through LLMClient (discover,
+# research, contacts stages).
 class _GoogleBackend(_LLMBackend):
     def __init__(self, api_key: str, model: str) -> None:
-        import google.generativeai as genai
+        from google import genai
 
-        genai.configure(api_key=api_key)
-        self._model_name = model
-        self._genai = genai
+        self._client = genai.Client(api_key=api_key)
+        self._model = model
 
     def complete(self, system: str, user: str) -> str:
-        model = self._genai.GenerativeModel(
-            model_name=self._model_name, system_instruction=system
+        from google.genai import types
+
+        response = self._client.models.generate_content(
+            model=self._model,
+            contents=user,
+            config=types.GenerateContentConfig(system_instruction=system),
         )
-        response = model.generate_content(user)
         return response.text or ""
 
 
@@ -104,6 +112,7 @@ class LLMClient:
         provider = settings.llm_provider
         model = settings.llm_model
         logger.info("Initializing LLM client: provider=%s, model=%s", provider, model)
+        self._provider = provider
 
         if provider == "anthropic":
             if not settings.anthropic_api_key:
@@ -141,7 +150,24 @@ class LLMClient:
             user_content += "\n\nContext:\n" + json.dumps(
                 context, indent=2, default=str
             )
-        response = self._backend.complete(_SYSTEM_PROMPT, user_content)
+            # Added the try  block to provide a user firendly error 
+        try:
+            response = self._backend.complete(_SYSTEM_PROMPT, user_content)
+        except Exception as exc:
+            # Try to detect authentication-like failures and raise a friendly error
+            msg = str(exc) or ""
+            low = msg.lower()
+            if "401" in msg or "incorrect api key" in low or "invalid_api_key" in low or "authentication" in low:
+                env_name = {
+                    "anthropic": "ANTHROPIC_API_KEY",
+                    "openai": "OPENAI_API_KEY",
+                    "google": "GOOGLE_API_KEY",
+                }.get(self._provider, "API key")
+                raise ValueError(
+                    f"LLM authentication failed for provider '{self._provider}'."
+                    f" Check {env_name} in your .env and ensure it is a valid key."
+                ) from exc
+            raise
         logger.info("Received LLM completion response")
         return response
 

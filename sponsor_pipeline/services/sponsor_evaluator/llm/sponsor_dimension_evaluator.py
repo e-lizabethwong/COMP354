@@ -37,7 +37,6 @@ from sponsor_pipeline.services.sponsor_evaluator.schemas import (
     SponsorMotivation,
 )
 
-
 # ---------------------------------------------------------------------------
 # Summary result  produced  after all  criterion scores are collected
 # ---------------------------------------------------------------------------

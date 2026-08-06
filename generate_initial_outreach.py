@@ -3,6 +3,7 @@ Initial outreach email generator.
 """
 
 from __future__ import annotations
+
 from sponsor_pipeline.config import Settings
 
 # Load sender and event details from .env via Settings
@@ -66,39 +67,44 @@ def generate_email(company_name, recipient_name, location):
 
 # Input prompts
 def main():
-    while True:
+    try:
         while True:
-            company_name = input("Enter the company name: ").strip()
-            if company_name:
-                break
+            while True:
+                company_name = input("Enter the company name: ").strip()
+                if company_name:
+                    break
+                else:
+                    print(
+                        "Company name cannot be blank. Please enter a valid company name."
+                    )
+
+            recipient_name = input(
+                "Enter the recipient's name (leave blank to use company name): "
+            ).strip()
+
+            # Ask if the recipient is local; default to Montreal, Quebec if blank
+            local_input = (
+                input("Is the recipient local? (y for yes, blank for no): ").strip().lower()
+            )
+
+            if local_input == "y":
+                location = ""
             else:
-                print(
-                    "Company name cannot be blank. Please enter a valid company name."
-                )
+                location = " in Montreal, Quebec"
 
-        recipient_name = input(
-            "Enter the recipient's name (leave blank to use company name): "
-        ).strip()
+            subject, body = generate_email(company_name, recipient_name, location)
 
-        # Ask if the recipient is local; default to Montreal, Quebec if blank
-        local_input = (
-            input("Is the recipient local? (y for yes, blank for no): ").strip().lower()
-        )
+            print("\n" + "=" * 80)
+            print(f"Subject: {subject}")
+            print("-" * 80)
+            print(body)
+            print("=" * 80 + "\n")
 
-        if local_input == "y":
-            location = ""
-        else:
-            location = " in Montreal, Quebec"
-
-        subject, body = generate_email(company_name, recipient_name, location)
-
-        print("\n" + "=" * 80)
-        print(f"Subject: {subject}")
-        print("-" * 80)
-        print(body)
-        print("=" * 80 + "\n")
-
-        input("Press enter to generate another email: ")
+            user_input = input("Press enter to generate another email (type 'exit' or 'e' to stop): ")
+            if user_input == "exit" or user_input == "e":
+                break
+    except KeyboardInterrupt:
+        print("\nExited program.")
 
 
 if __name__ == "__main__":

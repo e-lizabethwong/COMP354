@@ -26,11 +26,11 @@ from sponsor_pipeline.services.sponsor_evaluator.schemas import (
 )
 
 __all__ = [
-    "SponsorEvaluator",
     "ClaudeSponsorDimensionEvaluator",
-    "OpenAISponsorDimensionEvaluator",
-    "GoogleSponsorDimensionEvaluator",
     "Company",
     "Evidence",
+    "GoogleSponsorDimensionEvaluator",
+    "OpenAISponsorDimensionEvaluator",
+    "SponsorEvaluator",
     "SponsorScore",
 ]

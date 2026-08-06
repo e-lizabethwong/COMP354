@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
+from typing import ClassVar
 from urllib.parse import urljoin, urlparse
 
 import requests
@@ -138,7 +139,7 @@ class HackathonSiteAdapter(SourceAdapter):
 class JobBoardAdapter(SourceAdapter):
     """Seed list of Canadian tech employers commonly hiring students."""
 
-    SEED_COMPANIES = [
+    SEED_COMPANIES: ClassVar[list[tuple[str, str]]] = [
         ("Shopify", "https://www.shopify.com"),
         ("Wealthsimple", "https://www.wealthsimple.com"),
         ("1Password", "https://1password.com"),
@@ -174,7 +175,7 @@ class JobBoardAdapter(SourceAdapter):
 class ProductLaunchAdapter(SourceAdapter):
     """Developer-facing companies with strong hackathon product fit."""
 
-    SEED_COMPANIES = [
+    SEED_COMPANIES: ClassVar[list[tuple[str, str]]] = [
         ("Stripe", "https://stripe.com"),
         ("Twilio", "https://www.twilio.com"),
         ("Supabase", "https://supabase.com"),

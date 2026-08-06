@@ -16,6 +16,7 @@ __pycache__/
 
 venv/log.txt
 test_emails.txt
+emails.txt
 results/
 
 venv/
@@ -23,3 +24,5 @@ sponsors.db
 data/*.db
 data/log.txt
 log.txt
+err.log
+emails.txt

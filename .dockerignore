@@ -12,6 +12,7 @@ __pycache__/
 venv/
 results/
 test_emails.txt
+emails.txt
 log.txt
 data/*.db
 data/log.txt

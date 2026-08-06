@@ -16,16 +16,30 @@ from __future__ import annotations
 
 from sponsor_pipeline.models import (
     Company as PipelineCompany,
+)
+from sponsor_pipeline.models import (
     CrawlResult,
-    CriterionScore as PipelineCriterionScore,
     EvidenceCategory,
+)
+from sponsor_pipeline.models import (
+    CriterionScore as PipelineCriterionScore,
+)
+from sponsor_pipeline.models import (
     SponsorMotivation as PipelineMotivation,
+)
+from sponsor_pipeline.models import (
     SponsorScore as PipelineSponsorScore,
 )
 from sponsor_pipeline.services.sponsor_evaluator.schemas import (
     Company as EvaluatorCompany,
+)
+from sponsor_pipeline.services.sponsor_evaluator.schemas import (
     Evidence as EvaluatorEvidence,
+)
+from sponsor_pipeline.services.sponsor_evaluator.schemas import (
     SponsorMotivation as EvaluatorMotivation,
+)
+from sponsor_pipeline.services.sponsor_evaluator.schemas import (
     SponsorScore as EvaluatorScore,
 )
 
@@ -110,8 +124,8 @@ def evaluator_score_to_pipeline(
     eval_score: EvaluatorScore,
 ) -> PipelineSponsorScore:
     """
-    Convert schemas.SponsorScore (evaluator output) to models.SponsorScore (pipeline type).
-    Uses the pipeline Company so the score is linked to the correct pipeline entity (with id, status...).
+    Convert schemas.SponsorScore (evaluator output) to models.SponsorScore (pipeline type)
+    Uses the pipeline Company so the score is linked to the correct pipeline entity (with id, status...)
     """
     criterion_scores = {
         key: PipelineCriterionScore(

@@ -4,6 +4,7 @@ import argparse
 import sys
 from pathlib import Path
 
+import sponsor_pipeline as pkg
 from sponsor_pipeline.config import Settings
 from sponsor_pipeline.logger import get_logger
 from sponsor_pipeline.models import DiscoverySource
@@ -12,9 +13,42 @@ from sponsor_pipeline.orchestrator import PipelineOrchestrator
 logger = get_logger(__name__)
 
 
+# commands that indicate LLM access
+LLM_COMMANDS = {"run", "discover", "score", "research", "contacts"}
+
+
+def _looks_like_api_key(key: str) -> bool:
+    # heuristic: non-empty, no whitespace, mostly alphanumeric, reasonable length
+    if not key:
+        return False
+    k = key.strip()
+    if not k:
+        return False
+    # no whitespace
+    if any(c.isspace() for c in k):
+        return False
+    # reject obvious placeholder patterns or masked values
+    low = k.lower()
+    if "*" in k or "your-" in low or "replace" in low or "paste" in low or "changeme" in low:
+        return False
+    # require some alphanumeric content and no weird punctuation
+    if not any(c.isalnum() for c in k):
+        return False
+    # reasonable minimal length to avoid placeholders
+    return len(k) >= 16
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Hack Canada sponsor research pipeline — discover, score, research, and find contacts."
+    )
+    # Add a global `--version` flag that prints the package release/version and exits.
+    # This uses the `__release__` defined in `sponsor_pipeline/__init__.py`.
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=pkg.__release__,
+        help="Show program version and exit",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -106,6 +140,7 @@ def _run_scrape(args: argparse.Namespace, settings: Settings) -> int:
         lines.append("")
 
     output_path = Path(args.output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     text = "\n".join(lines)
     if args.append and output_path.exists():
         existing = output_path.read_text(encoding="utf-8")
@@ -132,6 +167,23 @@ def main(argv: list[str] | None = None) -> int:
         settings.llm_provider,
     )
 
+    # If this command will use the LLM, run a simple heuristic check on the active provider key.
+    if args.command in LLM_COMMANDS:
+        provider = settings.llm_provider
+        env_name = {
+            "anthropic": "ANTHROPIC_API_KEY",
+            "openai": "OPENAI_API_KEY",
+            "google": "GOOGLE_API_KEY",
+        }.get(provider)
+        key_val = getattr(settings, f"{provider}_api_key", "")
+        if not _looks_like_api_key(key_val):
+            logger.error(
+                "Configuration error: API key for llm provider '%s' appears missing or malformed. Check %s in your .env",
+                provider,
+                env_name,
+            )
+            return 1
+
     if args.command == "scrape":
         return _run_scrape(args, settings)
 
@@ -141,36 +193,40 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError as exc:
         logger.error("Error: %s", exc)
         return 1
-
-    if args.command == "run":
-        logger.info("Running full pipeline")
-        result = orchestrator.run_full_pipeline(_parse_sources(args.source))
-        logger.info("Pipeline complete")
-        print("Pipeline complete:")
-        for key, value in result.to_dict().items():
-            print(f"  {key}: {value}")
-        export_dir = settings.sponsor_db_path.parent / "exports"
-        orchestrator.export_reports(export_dir)
-        logger.info("Exports written to %s", export_dir)
-    elif args.command == "discover":
-        logger.info("Running discovery")
-        companies = orchestrator.run_discovery()
-        logger.info("Discovered %s companies", len(companies))
-    elif args.command == "score":
-        logger.info("Running scoring")
-        companies = orchestrator.run_scoring()
-        logger.info("Scored %s companies", len(companies))
-    elif args.command == "research":
-        logger.info("Running research")
-        companies = orchestrator.run_research()
-        logger.info("Researched %s companies", len(companies))
-    elif args.command == "contacts":
-        logger.info("Running contact discovery")
-        prospects = orchestrator.run_contact_discovery()
-        logger.info("Found contacts for %s companies", len(prospects))
-    elif args.command == "export":
-        orchestrator.export_reports(args.output)
-        logger.info("Exported reports to %s", args.output)
+# wrapped everything in a try block.
+    try:
+        if args.command == "run":
+            logger.info("Running full pipeline")
+            result = orchestrator.run_full_pipeline(_parse_sources(args.source))
+            logger.info("Pipeline complete")
+            print("Pipeline complete:")
+            for key, value in result.to_dict().items():
+                print(f"  {key}: {value}")
+            export_dir = settings.sponsor_db_path.parent / "exports"
+            orchestrator.export_reports(export_dir)
+            logger.info("Exports written to %s", export_dir)
+        elif args.command == "discover":
+            logger.info("Running discovery")
+            companies = orchestrator.run_discovery()
+            logger.info("Discovered %s companies", len(companies))
+        elif args.command == "score":
+            logger.info("Running scoring")
+            companies = orchestrator.run_scoring()
+            logger.info("Scored %s companies", len(companies))
+        elif args.command == "research":
+            logger.info("Running research")
+            companies = orchestrator.run_research()
+            logger.info("Researched %s companies", len(companies))
+        elif args.command == "contacts":
+            logger.info("Running contact discovery")
+            prospects = orchestrator.run_contact_discovery()
+            logger.info("Found contacts for %s companies", len(prospects))
+        elif args.command == "export":
+            orchestrator.export_reports(args.output)
+            logger.info("Exported reports to %s", args.output)
+    except ValueError as exc:
+        logger.error("Configuration error: %s", exc)
+        return 1
 
     return 0
 

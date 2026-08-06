@@ -3,6 +3,7 @@ Follow-up email generator
 """
 
 from __future__ import annotations
+
 from sponsor_pipeline.config import Settings
 
 # Load sender and event details from .env via Settings
@@ -52,26 +53,31 @@ def generate_email(company_name, recipient_name):
 
 # Input prompts
 def main():
-    while True:
+    try:
         while True:
-            company_name = input("Enter the company name: ").strip()
-            if company_name:
+            while True:
+                company_name = input("Enter the company name: ").strip()
+                if company_name:
+                    break
+                else:
+                    print(
+                        "Company name cannot be blank. Please enter a valid company name."
+                    )
+
+            recipient_name = input(
+                "Enter the recipient's name (leave blank to use company name): "
+            ).strip()
+
+            email = generate_email(company_name, recipient_name)
+            print("\n" + "=" * 80)
+            print(email)
+            print("=" * 80 + "\n")
+
+            user_input = input("Press enter to generate another follow-up email (type 'exit' or 'e' to stop): ")
+            if user_input == "exit" or user_input == "e":
                 break
-            else:
-                print(
-                    "Company name cannot be blank. Please enter a valid company name."
-                )
-
-        recipient_name = input(
-            "Enter the recipient's name (leave blank to use company name): "
-        ).strip()
-
-        email = generate_email(company_name, recipient_name)
-        print("\n" + "=" * 80)
-        print(email)
-        print("=" * 80 + "\n")
-
-        input("Press enter to generate another follow-up email: ")
+    except KeyboardInterrupt:
+        print("\nExited program.")
 
 
 if __name__ == "__main__":

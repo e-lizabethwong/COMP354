@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import re
 from collections import deque
 from urllib.parse import urljoin, urlparse
 
-from playwright.sync_api import sync_playwright
+from playwright.async_api import async_playwright
+from playwright.sync_api import Error, TimeoutError, sync_playwright
 
 from sponsor_pipeline.config import Settings
 from sponsor_pipeline.logger import get_logger
@@ -58,10 +60,10 @@ EMAIL_RE = re.compile(
     r"\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b", re.IGNORECASE
 )
 LINKEDIN_RE = re.compile(
-    r"https?://(?:www\.)?linkedin\.com/(?:in|company)/[A-Za-z0-9_/%-]+", re.I
+    r"https?://(?:www\.)?linkedin\.com/(?:in|company)/[A-Za-z0-9_/%-]+", re.IGNORECASE
 )
-TWITTER_RE = re.compile(r"https?://(?:www\.)?(?:twitter|x)\.com/[A-Za-z0-9_]+", re.I)
-GITHUB_RE = re.compile(r"https?://(?:www\.)?github\.com/[A-Za-z0-9_-]+", re.I)
+TWITTER_RE = re.compile(r"https?://(?:www\.)?(?:twitter|x)\.com/[A-Za-z0-9_]+", re.IGNORECASE)
+GITHUB_RE = re.compile(r"https?://(?:www\.)?github\.com/[A-Za-z0-9_-]+", re.IGNORECASE)
 
 
 class WebScraperService:
@@ -155,9 +157,117 @@ class WebScraperService:
         )
         return result
 
-    def batch_crawl(self, urls: list[str]) -> list[CrawlResult]:
-        logger.info("Starting batch crawl for %s URL(s)", len(urls))
+    def batch_crawl(self, urls: list[str], use_async: bool = False) -> list[CrawlResult]:
+        """Crawl a list of URLs sequentially or concurrently.
+
+        Args:
+            urls: list of starting URLs to crawl.
+            use_async: when True, crawl all URLs concurrently using
+                asyncio and playwright's async API. Defaults to False
+                for backwards compatibility.
+        """
+        logger.info("Starting batch crawl for %s URL(s) (async=%s)", len(urls), use_async)
+        if use_async:
+            return asyncio.run(self._batch_crawl_async(urls))
         return [self.crawl_site(url) for url in urls]
+
+    async def _crawl_site_async(self, start_url: str, context) -> CrawlResult:
+        """Async equivalent of crawl_site(). Uses a shared browser context."""
+        start_url = normalize_url(start_url)
+        visited: set[str] = set()
+        emails: set[str] = set()
+        social: dict[str, ContactMethod] = {}
+        snippets: dict[str, str] = {}
+        evidence: list[Evidence] = []
+        queue = deque(_prioritize_links([start_url], start_url))
+        pages_crawled = 0
+
+        self._log(f"Starting async crawl: {start_url}")
+
+        while queue and pages_crawled < self._settings.max_crawl_pages:
+            if len(emails) >= self._settings.max_emails_per_site and pages_crawled > 10:
+                self._log(f"Stopping crawl after finding enough emails: {len(emails)} email(s)")
+                break
+
+            url = queue.popleft()
+            if url in visited:
+                continue
+            visited.add(url)
+
+            html = await self._fetch_page_async(context, url)
+            if not html:
+                self._log(f"Failed to crawl: {url}")
+                continue
+
+            pages_crawled += 1
+            self._log(f"Crawled: {url}")
+            snippets[url] = _html_to_text(html, 2500)
+
+            for email in _extract_emails(html):
+                if email not in emails:
+                    emails.add(email)
+                    self._log(f"Found email: {email} on {url}")
+                    evidence.append(
+                        Evidence(
+                            category=EvidenceCategory.CONTACTABILITY,
+                            description=f"Public email found: {email}",
+                            source_url=url,
+                        )
+                    )
+
+            for method in _extract_social_links(html, url):
+                social[method.value] = method
+
+            for link in _get_internal_links(html, start_url):
+                if link not in visited and link not in queue:
+                    if _is_priority_link(link):
+                        queue.appendleft(link)
+                    else:
+                        queue.append(link)
+
+            _collect_evidence(html, url, evidence)
+
+        result = CrawlResult(
+            start_url=start_url,
+            pages_crawled=pages_crawled,
+            emails=sorted(emails),
+            social_links=list(social.values()),
+            page_snippets=snippets,
+            evidence=evidence,
+        )
+        self._log(f"Finished async crawl: {start_url} ({pages_crawled} pages, {len(emails)} emails)")
+        return result
+
+    async def _batch_crawl_async(self, urls: list[str]) -> list[CrawlResult]:
+        """Launch a shared browser and crawl all URLs concurrently.
+
+        A semaphore caps the number of sites being crawled at the same
+        time so we don't overwhelm the machine or the target servers.
+        """
+        logger.info("Starting async batch crawl for %s URL(s)", len(urls))
+
+        async with async_playwright() as pw:
+            browser = await pw.chromium.launch(headless=True)
+            context = await browser.new_context(
+                user_agent=(
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/120.0.0.0 Safari/537.36"
+                )
+            )
+
+            semaphore = asyncio.Semaphore(10)
+
+            async def _bounded(url: str) -> CrawlResult:
+                async with semaphore:
+                    return await self._crawl_site_async(url, context)
+
+            results = await asyncio.gather(*[_bounded(u) for u in urls])
+
+            await context.close()
+            await browser.close()
+
+            return results
 
     @staticmethod
     def _fetch_page(context, url: str) -> str:
@@ -166,11 +276,24 @@ class WebScraperService:
             page.goto(url, wait_until="domcontentloaded", timeout=25000)
             page.wait_for_timeout(1000)
             return page.content()
-        except Exception as exc:
+        except (TimeoutError, Error) as exc:
             logger.warning("Failed to fetch %s: %s", url, exc)
             return ""
         finally:
             page.close()
+
+    @staticmethod
+    async def _fetch_page_async(context, url: str) -> str:
+        page = await context.new_page()
+        try:
+            await page.goto(url, wait_until="domcontentloaded", timeout=25000)
+            await page.wait_for_timeout(1000)
+            return await page.content()
+        except (Error, TimeoutError) as exc:
+            logger.warning("Failed to fetch %s: %s", url, exc)
+            return ""
+        finally:
+            await page.close()
 
     def _log(self, message: str) -> None:
         logger.info(message)
@@ -250,8 +373,8 @@ def _extract_social_links(html: str, source_url: str) -> list[ContactMethod]:
 
 
 def _html_to_text(html: str, max_chars: int) -> str:
-    text = re.sub(r"<script[\s\S]*?</script>", " ", html, flags=re.I)
-    text = re.sub(r"<style[\s\S]*?</style>", " ", text, flags=re.I)
+    text = re.sub(r"<script[\s\S]*?</script>", " ", html, flags=re.IGNORECASE)
+    text = re.sub(r"<style[\s\S]*?</style>", " ", text, flags=re.IGNORECASE)
     text = re.sub(r"<[^>]+>", " ", text)
     text = re.sub(r"\s+", " ", text).strip()
     return text[:max_chars]

@@ -1,4 +1,5 @@
 # Testing Guide — Hack Canada Sponsor Research Pipeline
+
 > For anyone who wants to run and test the pipeline locally.
 
 ---
@@ -6,6 +7,7 @@
 ## Prerequisites
 
 Before starting, make sure you have the following installed:
+
 - **Python 3.11 or higher** — check with `python --version` in the terminal
 - **Git** — to clone the repo
 
@@ -53,7 +55,7 @@ source venv/bin/activate
 
 You should see `(venv)` appear at the start of your terminal prompt.
 
-> **Alternative — Docker:** If you have Docker Desktop installed, you can skip 
+> **Alternative — Docker:** If you have Docker Desktop installed, you can skip
 > Steps 2-3 and use Docker instead. See `DOCKER.md` for instructions.
 
 ---
@@ -93,6 +95,7 @@ copy env.example .env
 Open `.env` in any text editor and fill in the following:
 
 ### If using OpenAI/ChatGPT API (credits required):
+
 ```
 LLM_PROVIDER=openai
 OPENAI_API_KEY=your-openai-key-here
@@ -100,6 +103,7 @@ LLM_MODEL=gpt-4o-mini
 ```
 
 ### If using Anthropic/Claude API (credits required):
+
 ```
 LLM_PROVIDER=anthropic
 ANTHROPIC_API_KEY=your-anthropic-key-here
@@ -107,6 +111,7 @@ LLM_MODEL=claude-sonnet-4-6
 ```
 
 ### If using Google/Gemini API (credits required):
+
 ```
 LLM_PROVIDER=google
 GOOGLE_API_KEY=your-google-key-here
@@ -114,11 +119,13 @@ LLM_MODEL=gemini-2.0-flash
 ```
 
 ### If using Playwright only (no API key required):
+
 Leave the `LLM_PROVIDER`, `API_KEY`, and `LLM_MODEL` sections as they are.
 
 Steps 6 and 7 will work without an API key.
 
 ### Email generator details (optional but recommended):
+
 ```
 SENDER_NAME=Your Full Name
 SENDER_TITLE=Your Title
@@ -126,9 +133,11 @@ EVENT_NAME=Your Hackathon Event
 EVENT_DATE=Your Hackathon Event Date
 EVENT_VENUE=Your Hackathon Event Venue
 ```
+
 ### Optional settings
 
 For faster local testing, reduce these in your .env:
+
 ```
 MAX_CRAWL_PAGES=5
 MAX_EMAILS_PER_SITE=3
@@ -136,7 +145,7 @@ MAX_EMAILS_PER_SITE=3
 
 > **Important:** Never commit your `.env` file to git. It is already in `.gitignore`.
 >
-> **Windows users:** If `cp` doesn't work, use `Copy-Item` in PowerShell or 
+> **Windows users:** If `cp` doesn't work, use `Copy-Item` in PowerShell or
 > `copy` in Command Prompt as shown above.
 
 ---
@@ -165,7 +174,7 @@ print('Settings OK')
 python3 main.py --help
 ```
 
-All three should run without errors. The last command should show all available 
+All three should run without errors. The last command should show all available
 pipeline commands: `run`, `discover`, `score`, `research`, `contacts`, `export`, `scrape`.
 
 ---
@@ -182,6 +191,7 @@ cat test_emails.txt
 ```
 
 The pipeline now includes structured logging. You should see output like this while it runs:
+
 ```bash
 2026-07-10 12:48:38,255 | INFO | sponsor_pipeline.cli | Command selected: scrape
 2026-07-10 12:48:38,643 | INFO | sponsor_pipeline.cli | Starting scrape for 1 URL(s)
@@ -194,6 +204,7 @@ The pipeline now includes structured logging. You should see output like this wh
 ```
 
 Expected content of `test_emails.txt`:
+
 ```bash
 Website: https://conuhacks.io
 sponsor.hackconcordia@ecaconcordia.ca
@@ -203,11 +214,12 @@ team.hackconcordia@ecaconcordia.ca
 > **Note:** To test with a different website, replace the URL (https://conuhacks.io) with any other site.
 
 You can also scrape multiple URLs from the seed file:
+
 ```bash
 python3 main.py scrape data/hackathon_urls.txt --output test_emails.txt
 ```
 
-> **Warning:** The full batch scrape with 21 URLs takes 10-20 minutes depending 
+> **Warning:** The full batch scrape with 21 URLs takes 10-20 minutes depending
 > on your network. For a quick test, use the single `--url` option above.
 > To speed it up, set `MAX_CRAWL_PAGES=5` in your `.env` file.
 
@@ -218,27 +230,30 @@ python3 main.py scrape data/hackathon_urls.txt --output test_emails.txt
 > **Windows users:** Replace `python3` with `python` in all commands below.
 
 In terminal, test the initial outreach email generator:
+
 ```bash
 python3 generate_initial_outreach.py
 ```
 
 When prompted:
+
 - **Company name:** `Any company name` (press Enter)
 - **Recipient name:** optional (press Enter)
 - **Local recipient:** `y` or `n` (press Enter)
 
-You should see a fully formatted sponsorship email with your name and event details 
-loaded from your `.env` file. 
+You should see a fully formatted sponsorship email with your name and event details
+loaded from your `.env` file.
 No logging output is expected here.
 
 Test the follow-up email generator:
+
 ```bash
 python3 generate_followup_email.py
 ```
 
 Same prompts as above.
 
-> **Note:** If the sender name shows "Your Name Here" instead of your name, 
+> **Note:** If the sender name shows "Your Name Here" instead of your name,
 > make sure `SENDER_NAME` is filled in your `.env` file.
 
 ---
@@ -249,7 +264,7 @@ Same prompts as above.
 >
 > **Windows users:** Replace `python3` with `python` in all commands below.
 >
-> The pipeline supports all three LLM providers: Set `LLM_PROVIDER` in your 
+> The pipeline supports all three LLM providers: Set `LLM_PROVIDER` in your
 > `.env` to `anthropic`, `openai`, or `google` and provide the matching API key.
 
 ### Option A — Run each stage separately (recommended for testing)
@@ -258,7 +273,9 @@ Same prompts as above.
 # Stage 1: Discover companies from hackathon websites
 python3 main.py discover
 ```
+
 Expected log output:
+
 ```
 2026-07-10 | INFO | sponsor_pipeline.cli | Command selected: discover
 2026-07-10 | INFO | sponsor_pipeline.orchestrator | Setting up pipeline services
@@ -270,7 +287,9 @@ Expected log output:
 # Stage 2: Score discovered companies (uses LLM credits)
 python3 main.py score
 ```
+
 Expected log output:
+
 ```
 2026-07-10 | INFO | sponsor_pipeline.cli | Command selected: score
 2026-07-10 | INFO | sponsor_pipeline.services.scoring | Requesting sponsor score for [company] using X evidence item(s)
@@ -295,7 +314,9 @@ python3 main.py export --output-dir results/
 ```bash
 python3 main.py run
 ```
+
 Expected log output:
+
 ```
 2026-07-10 | INFO | sponsor_pipeline.orchestrator | Starting full pipeline
 2026-07-10 | INFO | sponsor_pipeline.orchestrator | Filter result: X passed, Y rejected below threshold 6.0
@@ -318,7 +339,7 @@ ls results/
 
 > **Note:** Pipeline results are stored in a SQLite database at `data/sponsors.db`.
 > This is a binary file, so do not try to open it with a text editor.
-> 
+>
 > To inspect the data, use the built-in `sqlite3` tool (no install needed):
 >
 > ```bash
@@ -330,6 +351,7 @@ ls results/
 > ```
 >
 > The `results/` folder (created by the `export` command) contains:
+>
 > - `prospects.csv` — outreach-ready companies in CSV format
 > - `*.md` files — individual Markdown reports per company
 
@@ -338,33 +360,33 @@ ls results/
 ## Troubleshooting
 
 **"`python3` not found" (Windows)**
-Windows does not have a `python3` command by default. Use `python` instead 
+Windows does not have a `python3` command by default. Use `python` instead
 of `python3` for all commands in this guide.
 
 **"No module named X"**
-Make sure your virtual environment is activated (`venv\Scripts\activate` on 
-Windows, `source venv/bin/activate` on Mac/Linux) and you ran 
+Make sure your virtual environment is activated (`venv\Scripts\activate` on
+Windows, `source venv/bin/activate` on Mac/Linux) and you ran
 `pip install -r requirements.txt`.
 
 **"playwright: command not found"**
-Use `python -m playwright install chromium` (Windows) or 
+Use `python -m playwright install chromium` (Windows) or
 `python3 -m playwright install chromium` (Mac/Linux) instead.
 
 **".env file not found" or "API key not set"**
-Make sure your `.env` file exists and has the correct API key for your 
-chosen provider. On Windows use `Copy-Item env.example .env` in PowerShell 
+Make sure your `.env` file exists and has the correct API key for your
+chosen provider. On Windows use `Copy-Item env.example .env` in PowerShell
 or `copy env.example .env` in Command Prompt.
 
 **"LLM_PROVIDER not supported"**
-Check that `LLM_PROVIDER` in your `.env` is exactly one of: 
+Check that `LLM_PROVIDER` in your `.env` is exactly one of:
 `anthropic`, `openai`, or `google`.
 
 **Pipeline produces no results**
-Check `data/hackathon_urls.txt` exists and has valid URLs. Run the 
+Check `data/hackathon_urls.txt` exists and has valid URLs. Run the
 scrape test first to confirm Playwright is working.
 
 **Batch scrape is taking too long**
-Reduce `MAX_CRAWL_PAGES=5` and `MAX_EMAILS_PER_SITE=3` in your `.env` 
+Reduce `MAX_CRAWL_PAGES=5` and `MAX_EMAILS_PER_SITE=3` in your `.env`
 for faster testing. The default values are optimized for production use.
 
 **Need a consistent environment across all operating systems?**
@@ -372,4 +394,4 @@ Use Docker. See `DOCKER.md` for setup instructions.
 
 ---
 
-*Last updated: July 2026 | COMP354 — Introduction to Software Engineering | Concordia University*
+_Last updated: July 2026 | COMP354 — Introduction to Software Engineering | Concordia University_

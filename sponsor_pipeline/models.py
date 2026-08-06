@@ -4,6 +4,7 @@ Defines all data classes and uses enumerations to maintain fixed set of values f
 """
 
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
@@ -221,7 +222,7 @@ class CrawlResult:
     start_url: str
     pages_crawled: int = 0
     emails: list[str] = field(default_factory=list)
-    social_links: list["ContactMethod"] = field(default_factory=list)
+    social_links: list[ContactMethod] = field(default_factory=list)
     page_snippets: dict[str, str] = field(default_factory=dict)
     evidence: list[Evidence] = field(default_factory=list)
 
@@ -246,7 +247,7 @@ class SponsorScore:
     per-dimension reasoning, confidence level, key strengths, weaknesses, and outreach angle are now all preserved.
     """
 
-    company: "Company"
+    company: Company
     criterion_scores: dict[str, CriterionScore]
     overall_score: float
     motivations: list[SponsorMotivation]

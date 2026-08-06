@@ -20,7 +20,12 @@ Scrape a single site without an LLM API key:
 
 ```bash
 docker compose run --rm app python main.py scrape --url https://conuhacks.io --output /app/data/test_emails.txt
+# For Git Bash:
+export MSYS_NO_PATHCONV=1
+docker compose run --rm app python main.py scrape --url https://conuhacks.io --output /app/data/test_emails.txt
 ```
+
+Git Bash automatically converts Linux-style argument into Windows paths before launching Docker. Linux containers receive the wrong path.
 
 Run a pipeline stage that uses an LLM:
 
@@ -34,6 +39,16 @@ Export reports:
 
 ```bash
 docker compose run --rm app python main.py export --output /app/results
+```
+
+Run tests:
+
+```bash
+docker run --rm -v "$(pwd):/app" -w /app comp354 sh scripts/docker-checks.sh
+# when using Git Bash
+export MSYS_NO_PATHCONV=1
+docker run --rm -v "$(pwd):/app" -w /app comp354 sh scripts/docker-checks.sh
+
 ```
 
 ## Data

@@ -11,9 +11,9 @@ Run with:
 """
 
 from sponsor_pipeline.config import Settings
+from sponsor_pipeline.orchestrator import _build_dimension_evaluator
 from sponsor_pipeline.services.sponsor_evaluator import SponsorEvaluator
 from sponsor_pipeline.services.sponsor_evaluator.schemas import Company, Evidence
-from sponsor_pipeline.orchestrator import _build_dimension_evaluator
 
 # --- Fake company and evidence (no scraping needed) ---
 company = Company(
