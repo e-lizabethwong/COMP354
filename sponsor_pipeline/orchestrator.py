@@ -25,6 +25,7 @@ from sponsor_pipeline.prompts.templates import PromptTemplateRegistry
 from sponsor_pipeline.services.contacts import ContactDiscoveryService
 from sponsor_pipeline.services.discovery import CompanyDiscoveryService
 from sponsor_pipeline.services.filter import LeadFilter
+from sponsor_pipeline.services.outreach import OutreachService
 from sponsor_pipeline.services.research import CompanyResearchService
 from sponsor_pipeline.services.scoring import SponsorScoringService
 from sponsor_pipeline.services.scraper import WebScraperService, normalize_url
@@ -97,7 +98,7 @@ class PipelineOrchestrator:
         logger.info("Setting up pipeline services")
         self._settings = settings
         self._llm = LLMClient(settings)
-        self._prompts = PromptTemplateRegistry()
+        self._prompts = PromptTemplateRegistry(settings.event_name)
         self._repo = SponsorRepository(settings.sponsor_db_path)
         self._scraper = WebScraperService(settings)
         self._crawl_cache: dict[str, CrawlResult] = {}
@@ -113,6 +114,7 @@ class PipelineOrchestrator:
             self._llm, self._scraper, self._prompts
         )
         self._exporter = ReportExporter()
+        self._outreach = OutreachService(settings, self._repo)
         logger.info("Pipeline services ready")
 
     def run_full_pipeline(
@@ -306,6 +308,12 @@ class PipelineOrchestrator:
         logger.info("Exporting reports to %s", output_dir)
         self._exporter.export_all(self._repo, Path(output_dir))
         logger.info("Report export finished")
+
+    def generate_outreach_emails(self, output_dir: str | Path) -> int:
+        logger.info("Generating outreach emails in %s", output_dir)
+        count = self._outreach.generate_all_and_save(Path(output_dir))
+        logger.info("Outreach email generation complete: %s files generated", count)
+        return count
 
     def _get_crawl(self, website: str) -> CrawlResult:
         key = normalize_url(website)

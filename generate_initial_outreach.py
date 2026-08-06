@@ -42,26 +42,19 @@ Thank you,
 """
 
 
+from sponsor_pipeline.persistence.repository import SponsorRepository
+from sponsor_pipeline.services.outreach import OutreachService
+
+_outreach_service = OutreachService(_settings, SponsorRepository(_settings.sponsor_db_path))
+
+
 def generate_email(company_name, recipient_name, location):
-    if not recipient_name.strip():
-        recipient_name = (
-            company_name  # Default to company name if no recipient name is provided
-        )
-
-    subject = email_subject.format(company_name=company_name, event_name=EVENT_NAME)
-
-    body = email_body.format(
-        recipient_name=recipient_name,
+    is_local = not bool(location and "Montreal" in location)
+    return _outreach_service.generate_initial_email(
         company_name=company_name,
-        your_name=YOUR_NAME,
-        your_title=YOUR_TITLE,
-        event_name=EVENT_NAME,
-        event_date=EVENT_DATE,
-        event_venue=EVENT_VENUE,
-        location=location,
+        recipient_name=recipient_name,
+        is_local=is_local,
     )
-
-    return subject, body
 
 
 # Input prompts

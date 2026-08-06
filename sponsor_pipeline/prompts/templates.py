@@ -1,8 +1,12 @@
 class PromptTemplateRegistry:
-    def get_discovery_prompt(self) -> str:
-        return """Extract potential hackathon sponsors from the provided web content.
+    def __init__(self, event_name: str = "Hack Canada") -> None:
+        self.event_name = event_name
 
-Focus on companies that are realistically likely to sponsor Hack Canada (Canadian student hackathon, Waterloo-heavy audience).
+    def get_discovery_prompt(self, event_name: str | None = None) -> str:
+        name = event_name or self.event_name
+        return f"""Extract potential hackathon sponsors from the provided web content.
+
+Focus on companies that are realistically likely to sponsor {name} (student hackathon).
 
 Look for:
 - Past hackathon or MLH sponsors
@@ -13,16 +17,17 @@ Look for:
 For each company return name, website URL, and why they might sponsor.
 Skip duplicates, generic placeholders, and companies with no clear sponsorship angle."""
 
-    def get_scoring_prompt(self) -> str:
-        return """Score this company's likelihood to sponsor Hack Canada.
+    def get_scoring_prompt(self, event_name: str | None = None) -> str:
+        name = event_name or self.event_name
+        return f"""Score this company's likelihood to sponsor {name}.
 
 Score each category 0-10:
-- talent_acquisition: hiring interns/new grads, Canada/Waterloo recruiting
+- talent_acquisition: hiring interns/new grads, campus recruiting
 - developer_ecosystem: APIs, SDKs, dev tools usable in a hackathon
 - community_sponsorship: event sponsorship, student community visibility
 - outreach_accessibility: realistic to contact (DevRel, campus recruiter, not just generic form)
 - sponsorship_capacity: size sweet spot (seed to Series C often best; tiny startups and mega-caps score lower unless strong evidence)
-- strategic_alignment: fit with Hack Canada's Canadian university audience
+- strategic_alignment: fit with {name}'s student university audience
 
 Also provide:
 - overall_score: weighted judgment, not just average of fame
@@ -32,8 +37,9 @@ Also provide:
 
 Famous companies without hackathon sponsorship history should NOT get high scores automatically."""
 
-    def get_research_prompt(self) -> str:
-        return """Create a detailed sponsor research report for Hack Canada outreach.
+    def get_research_prompt(self, event_name: str | None = None) -> str:
+        name = event_name or self.event_name
+        return f"""Create a detailed sponsor research report for {name} outreach.
 
 Answer:
 1. What does the company do?
@@ -42,16 +48,17 @@ Answer:
 4. Past hackathon, MLH, student, or university sponsorship evidence
 5. Do they hire interns or new grads?
 6. Do they hire in Canada?
-7. Waterloo alumni or UW connections?
+7. Waterloo alumni or university connections?
 8. DevRel, community, campus recruiting, or partnerships staff?
-9. Who should Hack Canada contact (role/title)?
+9. Who should {name} contact (role/title)?
 10. Best outreach angle (specific, not generic)
 11. Suggested sponsor tier: title, gold, silver, bronze, or in_kind
 
 Be specific and cite what you can infer from the evidence. Flag uncertainty honestly."""
 
-    def get_contact_identification_prompt(self) -> str:
-        return """Identify the best person at this company for Hack Canada sponsorship outreach.
+    def get_contact_identification_prompt(self, event_name: str | None = None) -> str:
+        name = event_name or self.event_name
+        return f"""Identify the best person at this company for {name} sponsorship outreach.
 
 Prioritize roles:
 - Developer Advocate / DevRel
@@ -80,3 +87,4 @@ Return contact methods with:
 - confidence: 0.0-1.0
 
 Prefer role-specific contacts over generic info@ addresses when evidence supports it."""
+

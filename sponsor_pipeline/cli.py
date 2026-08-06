@@ -40,6 +40,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="Output directory (default: data/exports)",
     )
 
+    outreach = sub.add_parser(
+        "outreach", help="Generate personalized sponsorship outreach emails for prospects"
+    )
+    outreach.add_argument(
+        "--output",
+        default="data/outreach",
+        help="Output directory for generated outreach emails (default: data/outreach)",
+    )
+
     scrape = sub.add_parser("scrape", help="Scrape public emails from URLs")
     scrape.add_argument(
         "urls_file",
@@ -171,6 +180,10 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "export":
         orchestrator.export_reports(args.output)
         logger.info("Exported reports to %s", args.output)
+    elif args.command == "outreach":
+        logger.info("Generating outreach emails")
+        count = orchestrator.generate_outreach_emails(args.output)
+        logger.info("Generated outreach emails for %s prospect(s) in %s", count, args.output)
 
     return 0
 

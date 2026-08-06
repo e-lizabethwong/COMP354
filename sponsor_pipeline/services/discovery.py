@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from urllib.parse import urlparse
 
 from sponsor_pipeline.adapters.sources import SourceAdapter
@@ -129,21 +130,45 @@ class CompanyDiscoveryService:
 
 
 def _dedupe_companies(companies: list[Company]) -> list[Company]:
-    by_key: dict[str, Company] = {}
+    deduped: list[Company] = []
     for company in companies:
-        key = _company_key(company)
-        if key in by_key:
-            existing = by_key[key]
-            for source in company.discovery_sources:
-                if source not in existing.discovery_sources:
-                    existing.discovery_sources.append(source)
-            if not existing.website and company.website:
-                existing.website = company.website
-            if not existing.industry and company.industry:
-                existing.industry = company.industry
-        else:
-            by_key[key] = company
-    return list(by_key.values())
+        matched = False
+        comp_key = _company_key(company)
+        comp_norm_name = _normalize_name(company.name)
+
+        for existing in deduped:
+            exist_key = _company_key(existing)
+            exist_norm_name = _normalize_name(existing.name)
+
+            # Match on domain key or normalized name / fuzzy similarity
+            if (comp_key and comp_key == exist_key) or _is_fuzzy_match(
+                comp_norm_name, exist_norm_name
+            ):
+                matched = True
+                for source in company.discovery_sources:
+                    if source not in existing.discovery_sources:
+                        existing.discovery_sources.append(source)
+                if not existing.website and company.website:
+                    existing.website = company.website
+                if not existing.industry and company.industry:
+                    existing.industry = company.industry
+                break
+
+        if not matched:
+            deduped.append(company)
+    return deduped
+
+
+CORPORATE_SUFFIXES_RE = re.compile(
+    r"\b(inc|inc\.|llc|corp|corp\.|corporation|ltd|ltd\.|co|co\.|canada|technologies|software|solutions)\b",
+    re.IGNORECASE,
+)
+
+
+def _normalize_name(name: str) -> str:
+    cleaned = CORPORATE_SUFFIXES_RE.sub("", name)
+    cleaned = re.sub(r"[^\w\s]", "", cleaned)
+    return " ".join(cleaned.lower().split())
 
 
 def _company_key(company: Company) -> str:
@@ -151,7 +176,17 @@ def _company_key(company: Company) -> str:
         host = urlparse(company.website).netloc.replace("www.", "").lower()
         if host:
             return host
-    return company.name.lower().strip()
+    return _normalize_name(company.name)
+
+
+def _is_fuzzy_match(name1: str, name2: str, threshold: float = 0.85) -> bool:
+    if not name1 or not name2:
+        return False
+    if name1 == name2 or name1 in name2 or name2 in name1:
+        return True
+    import difflib
+
+    return difflib.SequenceMatcher(None, name1, name2).ratio() >= threshold
 
 
 def _safe_parse(text: str) -> dict:
@@ -164,4 +199,6 @@ def _safe_parse(text: str) -> dict:
     try:
         return json.loads(text)
     except json.JSONDecodeError:
+        logger.warning("Failed to parse AI JSON response; returning empty lead list")
         return {"companies": []}
+

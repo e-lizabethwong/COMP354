@@ -33,21 +33,17 @@ HackConcordia {your_title} of Sponsorship
 """
 
 
+from sponsor_pipeline.persistence.repository import SponsorRepository
+from sponsor_pipeline.services.outreach import OutreachService
+
+_outreach_service = OutreachService(_settings, SponsorRepository(_settings.sponsor_db_path))
+
+
 def generate_email(company_name, recipient_name):
-    if not recipient_name.strip():
-        recipient_name = (
-            company_name  # Default to company name if no recipient name is provided
-        )
-
-    body = email_body.format(
-        recipient_name=recipient_name,
+    return _outreach_service.generate_followup_email(
         company_name=company_name,
-        your_name=YOUR_NAME,
-        your_title=YOUR_TITLE,
-        event_name=EVENT_NAME,
+        recipient_name=recipient_name,
     )
-
-    return body
 
 
 # Input prompts

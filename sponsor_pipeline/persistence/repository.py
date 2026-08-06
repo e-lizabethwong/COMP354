@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from contextlib import contextmanager
 from pathlib import Path
 
 from sponsor_pipeline.models import (
@@ -29,10 +30,27 @@ class SponsorRepository:
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
 
-    def _connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connect(self):
+        """
+        Yield a connection for a single unit of work, then close it.
+
+        Note: sqlite3.Connection's own context manager protocol only
+        commits/rolls back the transaction on exit — it does NOT close
+        the connection. Since every repository method opened a fresh
+        connection via _connect(), that meant a new, never-closed
+        connection was leaked on every single call. Wrapping it here
+        keeps every existing call site (`with self._connect() as conn:`)
+        working unchanged while making sure the connection is actually
+        closed once the transaction is done.
+        """
         conn = sqlite3.connect(self._db_path)
         conn.row_factory = sqlite3.Row
-        return conn
+        try:
+            with conn:
+                yield conn
+        finally:
+            conn.close()
 
     def _init_db(self) -> None:
         with self._connect() as conn:
